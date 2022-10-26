@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  wsa-server:
+    container_name: wsa-server
+    restart: always
+    command: npm run dev
+    build: .
+    ports:
+      - "7500:7500"
+    volumes:
+      - ./:/usr/src/app
+    links:
+      - mongo
+  mongo:
+    image: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./:/usr/data/db
+
+volumes:
+  ignore:

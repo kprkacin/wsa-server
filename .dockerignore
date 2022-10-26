@@ -1,0 +1,6 @@
+.DS_Store
+.gitattributes
+.gitignore
+deploy
+Dockerfile
+node_modules
