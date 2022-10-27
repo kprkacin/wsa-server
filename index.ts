@@ -5,23 +5,29 @@ import http, { createServer } from "http";
 import mongoose from "mongoose";
 import router from "./src/router";
 import io from "./src/socketio";
+import cors from "cors";
 dotenv.config();
 mongoose.connect("mongodb://mongo:27017/docker-db");
 const app: Express = express();
 const port = process.env.PORT;
 app.use(express.json());
+app.use(cors({ origin: "http://localhost:5173" }));
+
 app.use(express.urlencoded({ extended: true }));
 
 const server = createServer(app);
 server.listen(port);
 
-io.attach(server, {
-  cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
-    allowedHeaders: ["my-custom-header"],
-    credentials: true,
-  },
-});
+io.attach(
+  server
+  // {
+  // cors: {
+  //   origin: "http://localhost:5173",
+  //   methods: ["GET", "POST"],
+  //   allowedHeaders: ["my-custom-header"],
+  //   credentials: true,
+  // },
+  //}
+);
 
 app.use(router);

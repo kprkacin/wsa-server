@@ -4,7 +4,6 @@ import UserModel from "./models/User";
 import { Request, Response } from "express";
 import { generateToken, verifyToken } from "./middleware";
 import io from "./socketio";
-
 const router = Router();
 
 router.get("/", async (req: Request, res: Response) => {
