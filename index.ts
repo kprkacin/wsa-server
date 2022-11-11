@@ -18,16 +18,13 @@ app.use(express.urlencoded({ extended: true }));
 const server = createServer(app);
 server.listen(port);
 
-io.attach(
-  server
-  // {
-  // cors: {
-  //   origin: "http://localhost:5173",
-  //   methods: ["GET", "POST"],
-  //   allowedHeaders: ["my-custom-header"],
-  //   credentials: true,
-  // },
-  //}
-);
+io.attach(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["my-custom-header"],
+    credentials: true,
+  },
+});
 
 app.use(router);

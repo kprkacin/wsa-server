@@ -19,14 +19,12 @@ app.use((0, cors_1.default)({ origin: "http://localhost:5173" }));
 app.use(express_1.default.urlencoded({ extended: true }));
 const server = (0, http_1.createServer)(app);
 server.listen(port);
-socketio_1.default.attach(server
-// {
-// cors: {
-//   origin: "http://localhost:5173",
-//   methods: ["GET", "POST"],
-//   allowedHeaders: ["my-custom-header"],
-//   credentials: true,
-// },
-//}
-);
+socketio_1.default.attach(server, {
+    cors: {
+        origin: "http://localhost:5173",
+        methods: ["GET", "POST"],
+        allowedHeaders: ["my-custom-header"],
+        credentials: true,
+    },
+});
 app.use(router_1.default);

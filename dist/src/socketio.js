@@ -1,9 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const socket_io_1 = require("socket.io");
 const Player_1 = require("./types/Player");
 const helpers_1 = require("./helpers/helpers");
 const Square_1 = require("./types/Square");
+const Result_1 = __importDefault(require("./models/Result"));
 const io = new socket_io_1.Server();
 const clients = {};
 const players = {};
@@ -16,7 +20,9 @@ const removeClient = (socket) => {
     delete clients[socket.id];
     delete players[socket.id];
 };
+console.log(players);
 setInterval(() => {
+    console.log("players", players);
     const queuedPlayers = Object.values(players).filter((p) => p.playerState === Player_1.PlayerStates.QUEUED);
     if (queuedPlayers.length < 2) {
         return;
@@ -83,6 +89,8 @@ io.on("connection", (socket) => {
         if (!opponent) {
             return;
         }
+        players[opponent.id].turn = !players[opponent.id].turn;
+        players[socket.id].turn = !players[socket.id].turn;
         socket.emit("move.made", { squares: data, turn: players[socket.id].turn });
         opponent.emit("move.made", {
             squares: data,
@@ -92,6 +100,14 @@ io.on("connection", (socket) => {
         if (winner) {
             socket.emit("game.over", { winner });
             opponent.emit("game.over", { winner });
+            try {
+                Result_1.default.create({
+                    winner: winner === Square_1.SquareSymbol.X ? socket.id : opponent.id,
+                    playerX: socket.id,
+                    playerO: opponent.id,
+                });
+            }
+            catch (error) { }
         }
     });
     // Emit an event to the opponent when the player leaves

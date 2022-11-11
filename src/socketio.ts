@@ -4,6 +4,7 @@ import { PlayerCollection, PlayerStates } from "./types/Player";
 import { defineWinner } from "./helpers/helpers";
 import { ClientCollection } from "./types/Client";
 import { SquareSymbol } from "./types/Square";
+import ResultModel from "./models/Result";
 
 const io = new Server();
 
@@ -20,7 +21,9 @@ const removeClient = (socket: Socket) => {
   delete players[socket.id];
 };
 
+console.log(players);
 setInterval(() => {
+  console.log("players", players);
   const queuedPlayers = Object.values(players).filter(
     (p) => p.playerState === PlayerStates.QUEUED
   );
@@ -117,6 +120,9 @@ io.on("connection", (socket: Socket) => {
       return;
     }
 
+    players[opponent.id].turn = !players[opponent.id].turn;
+    players[socket.id].turn = !players[socket.id].turn;
+
     socket.emit("move.made", { squares: data, turn: players[socket.id].turn });
     opponent.emit("move.made", {
       squares: data,
@@ -127,6 +133,14 @@ io.on("connection", (socket: Socket) => {
     if (winner) {
       socket.emit("game.over", { winner });
       opponent.emit("game.over", { winner });
+
+      try {
+        ResultModel.create({
+          winner: winner === SquareSymbol.X ? socket.id : opponent.id,
+          playerX: socket.id,
+          playerO: opponent.id,
+        });
+      } catch (error) {}
     }
   });
 
