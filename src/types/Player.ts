@@ -12,6 +12,7 @@ export interface Player {
   opponent: string | null;
   turn: boolean;
   playerState: PlayerStates;
+  userId: string | null;
 }
 
 export interface PlayerCollection {

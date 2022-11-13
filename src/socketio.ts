@@ -3,8 +3,10 @@ import http, { createServer } from "http";
 import { PlayerCollection, PlayerStates } from "./types/Player";
 import { defineWinner } from "./helpers/helpers";
 import { ClientCollection } from "./types/Client";
-import { SquareSymbol } from "./types/Square";
+import { Square, SquareSymbol } from "./types/Square";
 import ResultModel from "./models/Result";
+import RankModel from "./models/Rank";
+import ReplayModel from "./models/Replay";
 
 const io = new Server();
 
@@ -21,9 +23,8 @@ const removeClient = (socket: Socket) => {
   delete players[socket.id];
 };
 
-console.log(players);
 setInterval(() => {
-  console.log("players", players);
+  console.log("Players", players);
   const queuedPlayers = Object.values(players).filter(
     (p) => p.playerState === PlayerStates.QUEUED
   );
@@ -80,6 +81,7 @@ const joinGame = (socket: Socket) => {
     socket: socket,
     turn: false,
     playerState: PlayerStates.ACTIVE,
+    userId: null,
   };
 };
 
@@ -102,6 +104,21 @@ io.on("connection", (socket: Socket) => {
   addClient(socket);
   joinGame(socket);
 
+  socket.on("user.id", (userId: string) => {
+    players[socket.id].userId = userId;
+
+    RankModel.findOne({ userId: userId }).then((rank) => {
+      if (!rank) {
+        const newRank = new RankModel({
+          userId: userId,
+          wins: 0,
+          losses: 0,
+        });
+        newRank.save();
+      }
+    });
+  });
+
   socket.on("disconnect", () => {
     removeClient(socket);
     socket.broadcast.emit("clientdisconnect", socket.id);
@@ -112,6 +129,7 @@ io.on("connection", (socket: Socket) => {
   socket.on("queuing", (data) => {
     players[socket.id].playerState = data;
   });
+  const data2: Square[][] = [];
 
   socket.on("make.move", (data) => {
     const opponent = getOpponent(socket.id);
@@ -119,6 +137,11 @@ io.on("connection", (socket: Socket) => {
     if (!opponent) {
       return;
     }
+
+    data2.push(data);
+    opponent.on("make.move", (data) => {
+      data2.push(data);
+    });
 
     players[opponent.id].turn = !players[opponent.id].turn;
     players[socket.id].turn = !players[socket.id].turn;
@@ -131,15 +154,32 @@ io.on("connection", (socket: Socket) => {
 
     const winner = defineWinner(data);
     if (winner) {
+      console.log(data2);
       socket.emit("game.over", { winner });
       opponent.emit("game.over", { winner });
 
       try {
         ResultModel.create({
-          winner: winner === SquareSymbol.X ? socket.id : opponent.id,
-          playerX: socket.id,
-          playerO: opponent.id,
+          winner:
+            winner === SquareSymbol.X
+              ? players[socket.id].userId
+              : players[opponent.id].userId,
+          playerX: players[socket.id].userId,
+          playerO: players[opponent.id].userId,
+        }).then((result) => {
+          ReplayModel.create({ replay: data2, resultId: result._id });
         });
+        //find one and update with upsert
+        RankModel.findOneAndUpdate(
+          { userId: players[socket.id].userId },
+          { $inc: { wins: 1 } },
+          { upsert: true, new: true }
+        ).exec();
+        RankModel.findOneAndUpdate(
+          { userId: players[opponent.id].userId },
+          { $inc: { losses: 1 } },
+          { upsert: true, new: true }
+        ).exec();
       } catch (error) {}
     }
   });
@@ -147,10 +187,31 @@ io.on("connection", (socket: Socket) => {
   // Emit an event to the opponent when the player leaves
   socket.on("disconnect", function () {
     const opponent = getOpponent(socket.id);
-
     if (opponent) {
       opponent.emit("opponent.left");
     }
+  });
+});
+
+// lobby chat
+io.on("connection", (socket: Socket) => {
+  socket.on("lobby.message.send", (data) => {
+    console.log("lobby.message.send", data);
+    socket.broadcast.emit("lobby.message.received", { data });
+  });
+});
+
+// game chat
+io.on("connection", (socket: Socket) => {
+  socket.on("game.message.send", (data) => {
+    const opponent = getOpponent(socket.id);
+    if (!opponent) {
+      return;
+    }
+
+    opponent.emit("game.message.received", {
+      data,
+    });
   });
 });
 

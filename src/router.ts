@@ -10,6 +10,8 @@ import { generateToken, verifyToken } from "./middleware";
 import io from "./socketio";
 import ResultModel from "./models/Result";
 import { hash, compare } from "bcryptjs";
+import RankModel from "./models/Rank";
+import ReplayModel from "./models/Replay";
 
 const router = Router();
 
@@ -19,6 +21,7 @@ router.get("/", async (req: Request, res: Response) => {
 
 router.post("/api/auth/register", async (req: Request, res: Response) => {
   const newUser = req.body;
+  console.log(!newUser.email);
 
   if (!newUser.email) {
     try {
@@ -88,8 +91,10 @@ router.get(
 );
 
 router.get("/api/results", verifyToken, async (req: Request, res: Response) => {
+  const limit = req.query.limit;
+  console.log("limit", limit);
   try {
-    const results = await ResultModel.find({});
+    const results = await ResultModel.find({}).limit(Number(limit));
 
     res.send(results);
   } catch (error) {
@@ -103,9 +108,10 @@ router.get(
   verifyToken,
   async (req: Request, res: Response) => {
     const id = req.params.id;
+    const limit = req.params.limit;
     try {
       const results = await ResultModel.find({
-        $or: [{ playerX: id }, { playerY: id }],
+        $or: [{ playerX: id }, { playerO: id }],
       });
 
       res.send(results);
@@ -124,6 +130,78 @@ router.get(
       const user = await UserModel.findOne({ _id: res.locals.user.id });
 
       res.send({ user: user });
+    } catch (error) {
+      console.log("ERROR");
+      res.send(error);
+    }
+  }
+);
+router.get(
+  "/api/user/:id",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    const id = req.params.id;
+
+    try {
+      const user = await UserModel.findOne({ _id: id });
+
+      res.send({ user: user });
+    } catch (error) {
+      console.log("ERROR");
+      res.send(error);
+    }
+  }
+);
+
+router.get("/api/users", verifyToken, async (req: Request, res: Response) => {
+  const id = req.params.id;
+
+  try {
+    const users = await UserModel.find({});
+
+    res.send(users);
+  } catch (error) {
+    console.log("ERROR");
+    res.send(error);
+  }
+});
+router.get("/api/ranks", verifyToken, async (req: Request, res: Response) => {
+  try {
+    const ranks = await RankModel.find();
+
+    res.send({ ranks });
+  } catch (error) {
+    console.log("ERROR");
+    res.send(error);
+  }
+});
+router.get(
+  "/api/ranks/:id",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    const id = req.params.id;
+
+    try {
+      const rank = await RankModel.findOne({ userId: id });
+
+      res.send({ rank });
+    } catch (error) {
+      console.log("ERROR");
+      res.send(error);
+    }
+  }
+);
+
+router.get(
+  "/api/replay/:id",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    const id = req.params.id;
+
+    try {
+      const replay = await ReplayModel.findOne({ resultId: id });
+
+      res.send({ replay });
     } catch (error) {
       console.log("ERROR");
       res.send(error);

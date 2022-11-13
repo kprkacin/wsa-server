@@ -8,6 +8,8 @@ const Player_1 = require("./types/Player");
 const helpers_1 = require("./helpers/helpers");
 const Square_1 = require("./types/Square");
 const Result_1 = __importDefault(require("./models/Result"));
+const Rank_1 = __importDefault(require("./models/Rank"));
+const Replay_1 = __importDefault(require("./models/Replay"));
 const io = new socket_io_1.Server();
 const clients = {};
 const players = {};
@@ -20,9 +22,8 @@ const removeClient = (socket) => {
     delete clients[socket.id];
     delete players[socket.id];
 };
-console.log(players);
 setInterval(() => {
-    console.log("players", players);
+    console.log("Players", players);
     const queuedPlayers = Object.values(players).filter((p) => p.playerState === Player_1.PlayerStates.QUEUED);
     if (queuedPlayers.length < 2) {
         return;
@@ -59,6 +60,7 @@ const joinGame = (socket) => {
         socket: socket,
         turn: false,
         playerState: Player_1.PlayerStates.ACTIVE,
+        userId: null,
     };
 };
 // Returns the opponent socket
@@ -75,6 +77,19 @@ io.on("connection", (socket) => {
     console.log("firstConnection");
     addClient(socket);
     joinGame(socket);
+    socket.on("user.id", (userId) => {
+        players[socket.id].userId = userId;
+        Rank_1.default.findOne({ userId: userId }).then((rank) => {
+            if (!rank) {
+                const newRank = new Rank_1.default({
+                    userId: userId,
+                    wins: 0,
+                    losses: 0,
+                });
+                newRank.save();
+            }
+        });
+    });
     socket.on("disconnect", () => {
         removeClient(socket);
         socket.broadcast.emit("clientdisconnect", socket.id);
@@ -84,11 +99,16 @@ io.on("connection", (socket) => {
     socket.on("queuing", (data) => {
         players[socket.id].playerState = data;
     });
+    const data2 = [];
     socket.on("make.move", (data) => {
         const opponent = getOpponent(socket.id);
         if (!opponent) {
             return;
         }
+        data2.push(data);
+        opponent.on("make.move", (data) => {
+            data2.push(data);
+        });
         players[opponent.id].turn = !players[opponent.id].turn;
         players[socket.id].turn = !players[socket.id].turn;
         socket.emit("move.made", { squares: data, turn: players[socket.id].turn });
@@ -98,14 +118,22 @@ io.on("connection", (socket) => {
         });
         const winner = (0, helpers_1.defineWinner)(data);
         if (winner) {
+            console.log(data2);
             socket.emit("game.over", { winner });
             opponent.emit("game.over", { winner });
             try {
                 Result_1.default.create({
-                    winner: winner === Square_1.SquareSymbol.X ? socket.id : opponent.id,
-                    playerX: socket.id,
-                    playerO: opponent.id,
+                    winner: winner === Square_1.SquareSymbol.X
+                        ? players[socket.id].userId
+                        : players[opponent.id].userId,
+                    playerX: players[socket.id].userId,
+                    playerO: players[opponent.id].userId,
+                }).then((result) => {
+                    Replay_1.default.create({ replay: data2, resultId: result._id });
                 });
+                //find one and update with upsert
+                Rank_1.default.findOneAndUpdate({ userId: players[socket.id].userId }, { $inc: { wins: 1 } }, { upsert: true, new: true }).exec();
+                Rank_1.default.findOneAndUpdate({ userId: players[opponent.id].userId }, { $inc: { losses: 1 } }, { upsert: true, new: true }).exec();
             }
             catch (error) { }
         }
@@ -116,6 +144,25 @@ io.on("connection", (socket) => {
         if (opponent) {
             opponent.emit("opponent.left");
         }
+    });
+});
+// lobby chat
+io.on("connection", (socket) => {
+    socket.on("lobby.message.send", (data) => {
+        console.log("lobby.message.send", data);
+        socket.broadcast.emit("lobby.message.received", { data });
+    });
+});
+// game chat
+io.on("connection", (socket) => {
+    socket.on("game.message.send", (data) => {
+        const opponent = getOpponent(socket.id);
+        if (!opponent) {
+            return;
+        }
+        opponent.emit("game.message.received", {
+            data,
+        });
     });
 });
 exports.default = io;
