@@ -161,7 +161,7 @@ io.on("connection", (socket: Socket) => {
       try {
         ResultModel.create({
           winner:
-            winner === SquareSymbol.X
+            winner === players[socket.id].symbol
               ? players[socket.id].userId
               : players[opponent.id].userId,
           playerX: players[socket.id].userId,

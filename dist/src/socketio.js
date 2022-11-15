@@ -123,7 +123,7 @@ io.on("connection", (socket) => {
             opponent.emit("game.over", { winner });
             try {
                 Result_1.default.create({
-                    winner: winner === Square_1.SquareSymbol.X
+                    winner: winner === players[socket.id].symbol
                         ? players[socket.id].userId
                         : players[opponent.id].userId,
                     playerX: players[socket.id].userId,

@@ -127,6 +127,26 @@ router.get("/api/user/:id", middleware_1.verifyToken, async (req, res) => {
         res.send(error);
     }
 });
+router.put("/api/user/:id", middleware_1.verifyToken, async (req, res) => {
+    const id = req.params.id;
+    // update user
+    try {
+        if (req.body.password) {
+            (0, bcryptjs_1.hash)(req.body.password, 10, async (err, hash) => {
+                const user = await User_1.default.findOneAndUpdate({ _id: id }, Object.assign(Object.assign({}, req.body), { password: hash })).exec();
+                res.send({ user: user });
+            });
+        }
+        else {
+            const user = await User_1.default.findOneAndUpdate({ _id: id }, Object.assign({}, req.body)).exec();
+            res.send({ user: user });
+        }
+    }
+    catch (error) {
+        console.log("ERROR");
+        res.send(error);
+    }
+});
 router.get("/api/users", middleware_1.verifyToken, async (req, res) => {
     const id = req.params.id;
     try {

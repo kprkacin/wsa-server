@@ -153,6 +153,35 @@ router.get(
   }
 );
 
+router.put(
+  "/api/user/:id",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    const id = req.params.id;
+    // update user
+    try {
+      if (req.body.password) {
+        hash(req.body.password, 10, async (err, hash) => {
+          const user = await UserModel.findOneAndUpdate(
+            { _id: id },
+            { ...req.body, password: hash }
+          ).exec();
+          res.send({ user: user });
+        });
+      } else {
+        const user = await UserModel.findOneAndUpdate(
+          { _id: id },
+          { ...req.body }
+        ).exec();
+        res.send({ user: user });
+      }
+    } catch (error) {
+      console.log("ERROR");
+      res.send(error);
+    }
+  }
+);
+
 router.get("/api/users", verifyToken, async (req: Request, res: Response) => {
   const id = req.params.id;
 
