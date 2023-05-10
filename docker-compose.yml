@@ -7,7 +7,7 @@ services:
     command: npm run dev
     build: .
     ports:
-      - "7500:7500"
+      - "80:80"
     volumes:
       - ./:/usr/src/app
     links:
